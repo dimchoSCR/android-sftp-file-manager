@@ -4,37 +4,29 @@ import android.app.Dialog
 import android.support.v4.app.DialogFragment
 import android.os.Bundle
 import android.app.AlertDialog
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
-import java.io.Serializable
-
 
 /**
  * Created by dimcho on 12.03.18.
  */
 
-const val RESULT_DIALOG_OK = 1
-const val RESULT_DIALOG_CANCEL = 2
-const val RESULT_PASSWORD_SET = 3
-const val RESULT_PASSWORD_CANCEL = 4
+const val REQUESTED_PASSWORD = "ReqPass"
+const val RESULT_PASSWORD_SET = 1
+const val RESULT_PASSWORD_CANCEL = 2
 
 class PassInputDialogFragment: DialogFragment() {
-//    private var dialogResultListener: OnDialogResultListener? = null
-//
-//    var message = "Oh gosh, message construction failed!"
-//    var customViewResId: Int =  R.layout.layout_password_dialog
 
-    // TODO remodel the PassInputDialog
     companion object Factory {
         private const val KEY_MESSAGE: String = "message"
 
         fun create(message: Int): PassInputDialogFragment {
             val passDialogFragment = PassInputDialogFragment()
 
-            val args: Bundle = Bundle()
+            val args = Bundle()
             args.putInt(KEY_MESSAGE, message)
-
             passDialogFragment.arguments = args
 
             return passDialogFragment
@@ -46,46 +38,28 @@ class PassInputDialogFragment: DialogFragment() {
 
         val builder = AlertDialog.Builder(context)
         val inflater: LayoutInflater = activity.layoutInflater
-        var dialogCustomView: View? = null
-        var resultArray: Array<Array<Int>> = arrayOf(
-                arrayOf(RESULT_DIALOG_OK, RESULT_DIALOG_CANCEL),
-                arrayOf(RESULT_PASSWORD_SET, RESULT_PASSWORD_CANCEL)
-        )
+        // Set the custom dialog view
+        val dialogCustomView: View? = inflater.inflate(R.layout.layout_password_dialog, null)
+        builder.setView(dialogCustomView)
 
-        var resultType: Int = 0
+        // Creates the AlertDialog object and returns it
+        builder.setMessage(resources.getString(arguments.getInt(KEY_MESSAGE)))
+                .setPositiveButton(android.R.string.ok) { _, _ ->
 
-//        if(customViewResId > -1) {
-//            dialogCustomView = inflater.inflate(customViewResId, null)
-//            builder.setView(dialogCustomView)
-//            resultType = 1
-//        }
-//
-//        builder.setMessage(message)
-//                .setPositiveButton(android.R.string.ok) { dialog, id ->
-//                    val tvPassword: TextView? = dialogCustomView?.findViewById(R.id.tvPassword)
-//
-//                    dialogResultListener?.onReceiveResult(resultArray[resultType][0],
-//                            tvPassword?.text.toString())
-//                }
-//
-//                .setNegativeButton(android.R.string.cancel) { dialog, id ->
-//                    dialogResultListener?.onReceiveResult(resultArray[resultType][1])
-//                }
+                    val tvPassword: TextView? = dialogCustomView?.findViewById(R.id.tvPassword)
+                    // Pass the password to the targetFragment via intent
+                    val result: Intent = Intent().putExtra(REQUESTED_PASSWORD,
+                            tvPassword?.text.toString())
 
-        // Create the AlertDialog object and return it
+                    targetFragment.onActivityResult(targetRequestCode,
+                            RESULT_PASSWORD_SET, result)
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+
+                    targetFragment.onActivityResult(targetRequestCode,
+                            RESULT_PASSWORD_CANCEL, null)
+                }
+
         return builder.create()
     }
-
-//    override fun onPause() {
-//        super.onPause()
-//        this.dismiss()
-//    }
-
-    interface OnDialogResultListener: Serializable {
-        fun onReceiveResult(resultCode: Int, result: String = "")
-    }
-
-//    fun setOnDialogResultListener(listener: OnDialogResultListener) {
-//        dialogResultListener = listener
-//    }
 }
