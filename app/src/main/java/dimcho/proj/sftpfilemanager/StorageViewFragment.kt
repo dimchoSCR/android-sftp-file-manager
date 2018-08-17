@@ -1,7 +1,7 @@
 package dimcho.proj.sftpfilemanager
 
 import android.Manifest
-import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Environment
@@ -27,13 +27,14 @@ import java.util.ArrayList
  * Created by dimcho on 04.03.18.
  */
 const val STORAGE_VIEW_FRAGMENT_TAG = "StorageView"
-private const val STORAGE_PERMISSION_REQUEST_CODE = 1
+
+private const val RC_GET_PASSWORD: Int = 1
+private const val RC_STORAGE_PERMISSION = 1
 private const val DIALOG_TAG = "SshDialog"
-
 private const val EXTERNAL_STORAGE_LIST_INDEX = 1
+private const val KEY_ROOT_STORAGE_PATH = "RootStorage"
 
-class StorageViewFragment: Fragment(), PassInputDialogFragment.OnDialogResultListener,
-        ListItemClickListener {
+class StorageViewFragment: Fragment(), ListItemClickListener {
 
     private val storageList: MutableList<StorageInfo> = ArrayList()
     private lateinit var toast: Toast
@@ -48,7 +49,7 @@ class StorageViewFragment: Fragment(), PassInputDialogFragment.OnDialogResultLis
 
             // No explanation needed, we can request the permission.
             requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                    STORAGE_PERMISSION_REQUEST_CODE)
+                    RC_STORAGE_PERMISSION)
         } else {
             // Permission has already been granted
 //            openFilesViewFragment("Local", null)
@@ -156,14 +157,12 @@ class StorageViewFragment: Fragment(), PassInputDialogFragment.OnDialogResultLis
                 }
 
                 else -> {
-//                    PassInputDialogFragment.create()
                     // TODO use shared prefs
                     rootStoragePath = "/export/content/downloads"
 
-                    val passwordPromptDialog = PassInputDialogFragment()
-//                    passwordPromptDialog.message = "Enter password for none@192.168.1.240"
-//                    passwordPromptDialog.customViewResId = R.layout.layout_password_dialog
-//                    passwordPromptDialog.setOnDialogResultListener(this)
+                    val passwordPromptDialog = PassInputDialogFragment.create(R.string.sftp_pass_msg)
+                    // Pass a reference of this fragment to the dialog
+                    passwordPromptDialog.setTargetFragment(this, RC_GET_PASSWORD)
                     passwordPromptDialog.show(fragmentManager, DIALOG_TAG)
                 }
             }
@@ -180,6 +179,10 @@ class StorageViewFragment: Fragment(), PassInputDialogFragment.OnDialogResultLis
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if(savedInstanceState != null) {
+            rootStoragePath = savedInstanceState.getString(KEY_ROOT_STORAGE_PATH)
+        }
 
         // Add predefined elements for the internal storage
         val internalStorageInfo =
@@ -221,16 +224,16 @@ class StorageViewFragment: Fragment(), PassInputDialogFragment.OnDialogResultLis
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
-
         view?.lvStorage?.onItemClickListener = null
+
+        super.onDestroyView()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int,
                                             permissions: Array<String>, grantResults: IntArray) {
 
         when (requestCode) {
-            STORAGE_PERMISSION_REQUEST_CODE -> {
+            RC_STORAGE_PERMISSION -> {
                 // If request is cancelled, the result arrays are empty.
                 if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
 //                    openFilesViewFragment("Local")
@@ -239,22 +242,32 @@ class StorageViewFragment: Fragment(), PassInputDialogFragment.OnDialogResultLis
                     toast = Toast.makeText(context,
                             "Permission denied, functionality disabled!", Toast.LENGTH_LONG)
                     toast.show()
-
                 }
             }
         }
     }
 
-    override fun onReceiveResult(resultCode: Int, result: String) {
-        when(resultCode) {
-            RESULT_DIALOG_OK -> {} // TODO unused
+    // Processes the result from the PassInputDialogFragment
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
 
-            RESULT_DIALOG_CANCEL, RESULT_PASSWORD_CANCEL -> Toast.makeText(context,
-                    "Connection canceled!", Toast.LENGTH_LONG).show()
+        if(requestCode == RC_GET_PASSWORD) {
+            when (resultCode) {
+                RESULT_PASSWORD_SET -> {
+                    val res = data?.getStringExtra(REQUESTED_PASSWORD)
+                    // Use the Remote implementation of the FileManager Interface
+                    openFilesViewFragment("Remote", res)
+                }
 
-            RESULT_PASSWORD_SET -> {
-                openFilesViewFragment("Remote", result)
+                RESULT_PASSWORD_CANCEL -> Toast.makeText(context,
+                        "Connection canceled!", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle?) {
+        outState?.putString(KEY_ROOT_STORAGE_PATH, rootStoragePath)
+
+        super.onSaveInstanceState(outState)
     }
 }
