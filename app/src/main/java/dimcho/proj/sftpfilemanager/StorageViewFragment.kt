@@ -37,8 +37,10 @@ private const val KEY_ROOT_STORAGE_PATH = "RootStorage"
 class StorageViewFragment: Fragment(), ListItemClickListener {
 
     private val storageList: MutableList<StorageInfo> = ArrayList()
+
     private lateinit var toast: Toast
-    private lateinit var rootStoragePath: String
+
+    private var rootStoragePath: String = ""
     private var sdCardPath: String = ""
     private var permissionsGranted: Boolean = false
 
@@ -89,7 +91,7 @@ class StorageViewFragment: Fragment(), ListItemClickListener {
 
         // On some android devices the path to sdcard is storage/sdcard
         // On newer devices its /storage/emulated/0
-        // Newer devices /mnt/media_rw
+        // TODO Newer devices use new API
         val storageDir: File = when(subDirectoryCnt) {
             3 -> internalStorageDir.parentFile.parentFile
             2 -> internalStorageDir.parentFile
